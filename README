@@ -1,0 +1,4 @@
+A very simple client to release DHCP leases.
+
+Usage:
+    dhcplr siaddr ciaddr chaddr
