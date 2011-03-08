@@ -13,6 +13,34 @@
 #include "dhcp.h"
 
 
+void release_packet(struct dhcp_packet *packet, struct in_addr siaddr,
+                    struct in_addr ciaddr, struct ether_addr chaddr) {
+
+    memset(packet, 0, sizeof(*packet));
+
+    packet->op = BOOTREQUEST;
+    packet->htype = HTYPE_ETHER;
+    packet->hlen = 6;
+    packet->xid = rand();
+    packet->ciaddr = ciaddr;
+    memcpy(packet->chaddr, &chaddr, 6);
+
+    // start options
+    memcpy(packet->options, DHCP_OPTIONS_COOKIE, 4);
+
+    packet->options[4] = DHO_DHCP_MESSAGE_TYPE;
+    packet->options[5] = 1;
+    packet->options[6] = DHCPRELEASE;
+
+    packet->options[7] = DHO_DHCP_SERVER_IDENTIFIER;
+    packet->options[8] = 4;
+    memcpy(packet->options+9, &siaddr, 4);
+
+    packet->options[13] = DHO_END;
+    // end options
+}
+
+
 int main(int argc, const char *argv[]) {
 
     int s, r;
@@ -56,32 +84,10 @@ int main(int argc, const char *argv[]) {
     sa.sin_port = htons(DHCP_SERVER_PORT);
     sa.sin_addr = siaddr;
 
-    memset(&release, 0, sizeof(release));
-
-    release.op = BOOTREQUEST;
-    release.htype = HTYPE_ETHER;
-    release.hlen = 6;
-    release.xid = rand();
-    release.ciaddr = ciaddr;
-    memcpy(release.chaddr, (void *)chaddr, 6);
-
-    // start options
-    memcpy(release.options, (void *)DHCP_OPTIONS_COOKIE, 4);
-
-    release.options[4] = DHO_DHCP_MESSAGE_TYPE;
-    release.options[5] = 1;
-    release.options[6] = DHCPRELEASE;
-
-    release.options[7] = DHO_DHCP_SERVER_IDENTIFIER;
-    release.options[8] = 4;
-    memcpy(release.options+9, (void *)&siaddr.s_addr, 4);
-
-    release.options[13] = DHO_END;
-    // end options
+    release_packet(&release, siaddr, ciaddr, *chaddr);
 
     r = sendto(s, &release, sizeof(release), 0, (const struct sockaddr *)&sa,
                sizeof(sa));
-
     if (!r) {
         perror("sendto");
         exit(EXIT_FAILURE);
